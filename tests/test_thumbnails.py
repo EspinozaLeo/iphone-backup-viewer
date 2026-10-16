@@ -10,6 +10,7 @@ import pytest
 from PIL import Image
 
 from iphone_backup_viewer.core.backup import Backup
+from iphone_backup_viewer.core.cache_key import backup_cache_key
 from iphone_backup_viewer.core.discovery import read_info
 from iphone_backup_viewer.media import thumbnails, video
 from iphone_backup_viewer.media.thumbnails import ThumbnailCache, default_cache_dir
@@ -40,7 +41,7 @@ def test_default_cache_dir() -> None:
 def test_photo_thumbnail_path_and_size(cache: ThumbnailCache, modern_backup: Backup) -> None:
     entry = _entry(modern_backup, "Media/DCIM/100APPLE/IMG_0001.JPG")
     path = cache.get(modern_backup, entry)
-    assert path == cache.cache_dir / fb.MODERN_UDID / "thumbs" / f"{entry.file_id}_256.jpg"
+    assert path == cache.cache_dir / backup_cache_key(modern_backup.info) / "thumbs" / f"{entry.file_id}_256.jpg"
     with Image.open(path) as image:
         assert image.format == "JPEG"
         assert image.size == (256, 192)
@@ -99,7 +100,7 @@ def test_corrupt_file_returns_none_and_is_not_retried(
     assert cache.get(modern_backup, entry) is None
     assert cache.get(modern_backup, entry, 128) is None
     assert len(calls) == 1
-    assert not (cache.cache_dir / fb.MODERN_UDID / "thumbs" / f"{entry.file_id}_256.jpg").exists()
+    assert not (cache.cache_dir / backup_cache_key(modern_backup.info) / "thumbs" / f"{entry.file_id}_256.jpg").exists()
 
 
 def test_corrupt_video_returns_none(cache: ThumbnailCache, tmp_path: Path, modern_path: Path) -> None:

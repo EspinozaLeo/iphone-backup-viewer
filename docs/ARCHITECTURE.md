@@ -61,12 +61,20 @@ See `docs/research/backup-format.md` for detail and sources.
 
 ## Caches
 
-`platformdirs.user_cache_dir("iPhoneBackupViewer")`, keyed by backup UDID:
+`platformdirs.user_cache_dir("iPhoneBackupViewer")`, keyed by backup **snapshot**, not by phone:
 
 ```
-<cache>/<udid>/thumbs/<file_id>_<size>.jpg
-<cache>/<udid>/plain/<file_id><ext>        # decrypted copies (iteration 2+)
+<cache>/<snapshot>/thumbs/<file_id>_<size>.jpg
+<cache>/<snapshot>/plain/<file_id><ext>        # decrypted copies (iteration 2+)
+
+<snapshot> = core.cache_key.backup_cache_key(info)
+           = <udid>-<last_backup as %Y%m%dT%H%M%SZ>      e.g. 00008030-001A…-20250601T184512Z
+           = <udid>-<sha1(resolved folder path)[:12]>    when the backup date is unknown
 ```
+
+Archived backups of one phone (iTunes "Archive" makes folders like `<UDID>-20120304-…`) share a UDID, and the
+same file ID can hold different contents in each. A UDID-only key would show, and for `plain/` serve, the wrong
+file. Two copies of the same snapshot in different places share a key, which is correct.
 
 Writes go to a temp name followed by `os.replace`, so concurrent workers never see half-written files.
 
@@ -86,7 +94,7 @@ The app is MIT.
 | PySide6 | LGPL-3.0 | Qt widgets + Qt Multimedia (bundled FFmpeg backend plays H.264 and HEVC) |
 | Pillow | MIT-CMU | Image decode/resize |
 | pi-heif | BSD-3 (bundles LGPL libheif/libde265) | HEIC decode. Chosen over pillow-heif, which bundles the GPL x265 encoder |
-| av (PyAV) | BSD-3 (bundles FFmpeg) | Video thumbnails. **Check the bundled FFmpeg's license before the first binary release** |
+| av (PyAV) | BSD-3 (bundles FFmpeg) | Video thumbnails. **The wheel's bundled FFmpeg is built with libx264/libx265 (GPL)**, even though it reports "LGPL version 3 or later". This must be resolved before any binary release: either grab thumbnail frames via Qt Multimedia (LGPL FFmpeg), or ship a custom LGPL-only PyAV build |
 | platformdirs | MIT | Cache locations |
 
 Planned: `cryptography` (Apache-2.0/BSD) for decryption, and `python-typedstream` (LGPL-3.0) for iOS message bodies.

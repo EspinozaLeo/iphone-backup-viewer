@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 import threading
 import uuid
 from pathlib import Path
@@ -11,6 +10,7 @@ import platformdirs
 from PIL import Image
 
 from ..core.backup import Backup
+from ..core.cache_key import backup_cache_key, safe_name
 from ..core.errors import BackupError, EncryptedBackupError
 from ..core.models import FileEntry
 from .images import open_image
@@ -21,7 +21,6 @@ log = logging.getLogger(__name__)
 APP_CACHE_NAME = "iPhoneBackupViewer"
 _JPEG_QUALITY = 85
 _BACKGROUND = (255, 255, 255)  # JPEG has no alpha; transparent PNGs are flattened onto white
-_UNSAFE = re.compile(r"[^A-Za-z0-9._-]")
 
 
 def default_cache_dir() -> Path:
@@ -30,7 +29,7 @@ def default_cache_dir() -> Path:
 
 
 class ThumbnailCache:
-    """JPEG thumbnails on disk, keyed by backup UDID + file_id + size. Thread-safe."""
+    """JPEG thumbnails on disk, keyed by backup snapshot (see backup_cache_key) + file_id + size. Thread-safe."""
 
     def __init__(self, cache_dir: Path) -> None:
         self.cache_dir = cache_dir
@@ -59,7 +58,8 @@ class ThumbnailCache:
             if failed_key in self._failed:
                 return None
 
-        target = self.cache_dir / _safe(backup.info.udid) / "thumbs" / f"{_safe(entry.file_id)}_{size}.jpg"
+        thumbs = self.cache_dir / backup_cache_key(backup.info) / "thumbs"
+        target = thumbs / f"{safe_name(entry.file_id)}_{size}.jpg"
         if target.is_file():
             return target
 
@@ -124,8 +124,3 @@ class ThumbnailCache:
             except OSError:
                 pass
 
-
-def _safe(name: str) -> str:
-    """Keep plist- or manifest-supplied names from escaping the cache folder."""
-    cleaned = _UNSAFE.sub("_", name).strip(".")
-    return cleaned or "_"
