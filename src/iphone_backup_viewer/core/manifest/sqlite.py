@@ -23,6 +23,7 @@ from urllib.parse import quote
 from .._time import utc_from_unix
 from ..errors import BackupError
 from ..models import FileEntry, FileKind
+from ._fast_mbfile import read_mbfile
 from ._kinds import kind_from_mode
 
 log = logging.getLogger(__name__)
@@ -128,7 +129,10 @@ def _parse_file_blob(blob: object) -> _FileMeta | None:
     """Size, mtime, protection class, wrapped key and mode from one `file` blob. None if unreadable."""
     if not isinstance(blob, (bytes, bytearray, memoryview)) or not blob:
         return None
-    raw = _read_mbfile_with_plistlib(bytes(blob))
+    blob = bytes(blob)
+    raw = read_mbfile(blob)  # fast path for the usual shape
+    if raw is None:
+        raw = _read_mbfile_with_plistlib(blob)
     if raw is None:
         return None
     size, mtime, protection_class, mode, wrapped_key = raw
@@ -143,7 +147,7 @@ def _parse_file_blob(blob: object) -> _FileMeta | None:
 
 
 def _read_mbfile_with_plistlib(blob: bytes) -> _RawFields | None:
-    """(size, mtime, protection_class, mode, encryption_key) from any valid archive."""
+    """The general path: any valid archive, whatever its encoding quirks. Same tuple as read_mbfile."""
     try:
         archive = plistlib.loads(blob, fmt=plistlib.FMT_BINARY)
         objects = archive["$objects"]
