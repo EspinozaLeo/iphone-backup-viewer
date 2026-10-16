@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "iphone-backup-viewer"
+version = "0.1.0.dev0"
+description = "Browse old iPhone backups (messages, photos, videos) without restoring them to a phone."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "EspinozaLeo" }]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: X11 Applications :: Qt",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "PySide6>=6.8",
+    "Pillow>=10.4",
+    "pi-heif>=0.20",      # HEIC decode only (no GPL x265 encoder, unlike pillow-heif)
+    "av>=13",             # video thumbnails
+    "platformdirs>=4",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-qt>=4.4"]
+
+[project.gui-scripts]
+iphone-backup-viewer = "iphone_backup_viewer.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/iphone_backup_viewer"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

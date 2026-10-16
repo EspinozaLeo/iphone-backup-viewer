@@ -1,0 +1,9 @@
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.heic binary
+*.mov binary
+*.db binary
+*.sqlite binary
+*.mbdb binary
+*.plist binary

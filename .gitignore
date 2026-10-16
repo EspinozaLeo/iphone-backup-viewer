@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Parallel agent worktrees
+.worktrees/
+
+# Never commit real backup data. Put local copies here if you need them.
+local/
+*.backup/
+demo-backups/
