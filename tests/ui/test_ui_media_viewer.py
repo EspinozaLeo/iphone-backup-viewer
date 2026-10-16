@@ -5,6 +5,7 @@ import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtMultimedia import QMediaPlayer
 
+from iphone_backup_viewer.core.cache_key import backup_cache_key
 from iphone_backup_viewer.core.models import MediaKind
 from iphone_backup_viewer.ui import playback
 from iphone_backup_viewer.ui.media_viewer import pil_to_qimage
@@ -118,7 +119,7 @@ def test_player_error_retries_through_extension_alias(opened, qtbot, tmp_path):
     viewer = w.viewer
     qtbot.waitUntil(lambda: viewer.player is not None and not viewer.player.source().isEmpty(), timeout=5000)
     viewer._player_error(QMediaPlayer.Error.FormatError, "simulated: backend wants an extension")
-    alias = playback.play_dir(w.services.thumbnails.cache_dir, w.backup.info.udid) / f"{entry.file_id}.mov"
+    alias = playback.play_dir(w.services.thumbnails.cache_dir, backup_cache_key(w.backup.info)) / f"{entry.file_id}.mov"
     qtbot.waitUntil(lambda: Path(viewer.player.source().toLocalFile()) == alias, timeout=5000)
     assert alias.read_bytes() == w.backup.local_path(entry).read_bytes()
     viewer._player_error(QMediaPlayer.Error.FormatError, "still failing")  # second failure: give up politely
@@ -126,27 +127,21 @@ def test_player_error_retries_through_extension_alias(opened, qtbot, tmp_path):
     assert "Can't play this video" in viewer.canvas.message()
 
 
-def test_playable_alias_links_or_copies(tmp_path, monkeypatch):
+def test_playable_alias_copies_and_never_links(tmp_path):
     src = tmp_path / "backup" / "ab" / "abcdef"
     src.parent.mkdir(parents=True)
     src.write_bytes(b"\x00\x00\x00\x14ftypqt  " + b"x" * 100)
+    before = os.stat(src)
     cache = tmp_path / "cache"
-    linked = playback.playable_alias(src, cache, "UDID", "abcdef", ".MOV")
-    assert linked == cache / "UDID" / "play" / "abcdef.mov"
-    assert linked.read_bytes() == src.read_bytes()
-    assert os.stat(linked).st_nlink == 2  # a hard link on the same volume
-    assert playback.playable_alias(src, cache, "UDID", "abcdef", ".MOV") == linked  # reused
-
-    def no_links(*_a, **_k):
-        raise OSError("cross-device link")
-
-    monkeypatch.setattr(os, "link", no_links)
-    copied = playback.playable_alias(src, cache, "UDID2", "abcdef", "mp4")
-    assert copied.name == "abcdef.mp4"
+    copied = playback.playable_alias(src, cache, "UDID-20120304T101500Z", "abcdef", ".MOV")
+    assert copied == cache / "UDID-20120304T101500Z" / "play" / "abcdef.mov"
     assert copied.read_bytes() == src.read_bytes()
     assert os.stat(copied).st_nlink == 1
     assert not list(copied.parent.glob("*.part"))
-    assert src.stat().st_nlink == 2  # the backup file itself is untouched
+    assert playback.playable_alias(src, cache, "UDID-20120304T101500Z", "abcdef", ".MOV") == copied  # reused
+    assert playback.playable_alias(src, cache, "UDID-x", "abcdef", "mp4").name == "abcdef.mp4"
+    after = os.stat(src)  # the backup file itself is untouched: no extra link, same metadata
+    assert (after.st_nlink, after.st_mtime_ns, after.st_size) == (before.st_nlink, before.st_mtime_ns, before.st_size)
 
 
 def test_pil_to_qimage_handles_modes():

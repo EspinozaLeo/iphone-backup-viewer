@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 from .. import APP_NAME
+from ..core.cache_key import backup_cache_key
 from ..core.errors import MissingFileError
 from ..core.models import FileEntry, MediaItem, MediaKind
 from . import icons, theme
@@ -502,10 +503,10 @@ class MediaViewer(QWidget):
             # The backend may want an extension to pick a demuxer. Retry once with one.
             self._alias_tried = True
             log.info("retrying %s through an extension alias (%s)", entry.relative_path, message)
-            backup = self._model.backup
+            cache_key = backup_cache_key(self._model.backup.info)
             source = self._play_path
             self._runner.submit(
-                lambda: playable_alias(source, self._cache_dir(), backup.info.udid, entry.file_id, entry.suffix or ".mov"),
+                lambda: playable_alias(source, self._cache_dir(), cache_key, entry.file_id, entry.suffix or ".mov"),
                 on_done=lambda path: self._start_source(token, entry, Path(path)),
                 on_error=lambda exc: self._video_failed(token, exc),
             )
